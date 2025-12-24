@@ -22,6 +22,7 @@ requires = [
     "pandas>=0.22.0",
     "beautifulsoup4>=4.0.2",
     "py_mini_racer>=0.6.0",
+    "matplotlib>=3.0.0",
 ]
 
 

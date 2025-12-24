@@ -11,6 +11,7 @@ from adata.stock.market.concepth_market import StockMarketConcept
 from adata.stock.market.index_market import StockMarketIndex
 from adata.stock.market.stock_dividend import StockDividend
 from adata.stock.market.stock_market import StockMarket
+from adata.stock.market.ma_breakout_signal import detect_ma_breakout_signal
 
 
 class Market(StockCapitalFlow, ConceptCapitalFlow, StockMarket, StockMarketConcept, StockDividend, StockMarketIndex):
