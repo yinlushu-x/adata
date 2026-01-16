@@ -8,11 +8,56 @@ TODO 数据返回类型转换
 """
 
 import pandas as pd
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from functools import wraps
 
 from adata.stock.market.stock_market.stock_market_baidu import StockMarketBaiDu
 from adata.stock.market.stock_market.stock_market_east import StockMarketEast
 from adata.stock.market.stock_market.stock_market_qq import StockMarketQQ
 from adata.stock.market.stock_market.stock_market_sina import StockMarketSina
+
+
+def async_batch_decorator(func):
+    """
+    多线程批量处理装饰器
+    当传入stock_code为列表时，使用多线程并发获取数据
+    """
+    @wraps(func)
+    def wrapper(self, stock_code='000001', *args, **kwargs):
+        # 如果是单个股票代码，直接调用原函数
+        if isinstance(stock_code, str):
+            return func(self, stock_code, *args, **kwargs)
+        
+        # 如果是股票代码列表，使用多线程并发获取
+        if isinstance(stock_code, list):
+            results = []
+            max_workers = min(10, len(stock_code))
+            
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # 提交所有任务
+                future_to_code = {
+                    executor.submit(func, self, code, *args, **kwargs): code 
+                    for code in stock_code
+                }
+                
+                # 收集结果
+                for future in as_completed(future_to_code):
+                    code = future_to_code[future]
+                    try:
+                        result = future.result()
+                        if result is not None and not result.empty:
+                            results.append(result)
+                    except Exception as e:
+                        print(f"获取股票 {code} 行情数据时出错: {e}")
+            
+            # 合并所有结果
+            if results:
+                return pd.concat(results, ignore_index=True)
+            return pd.DataFrame()
+        
+        return pd.DataFrame()
+    
+    return wrapper
 
 
 class StockMarket(object):
@@ -27,11 +72,12 @@ class StockMarket(object):
         self.baidu_market = StockMarketBaiDu()
         self.east_market = StockMarketEast()
 
+    @async_batch_decorator
     def get_market(self, stock_code: str = '000001', start_date='1990-01-01', end_date=None, k_type=1,
                    adjust_type: int = 1):
         """
-        获取单个股票的行情
-        :param stock_code: 股票代码
+        获取单个或多个股票的行情（支持多线程批量获取）
+        :param stock_code: 股票代码（支持单个字符串或列表）
         :param start_date: 开始时间
         :param end_date: 结束日期
         :param k_type: k线类型：1.日；2.周；3.月,4季度，5.5min，15.15min，30.30min，60.60min 默认：1 日k
@@ -100,8 +146,16 @@ class StockMarket(object):
 
 
 if __name__ == '__main__':
+    # 测试单个股票获取（原有功能）
     print(StockMarket().get_market(stock_code='002230', start_date='2024-07-22', k_type=1))
     print(StockMarket().get_market_min(stock_code='000001'))
     print(StockMarket().list_market_current(code_list=['000001', '600001', '000795', '872925']))
     print(StockMarket().get_market_five(stock_code='000001'))
     print(StockMarket().get_market_bar(stock_code='000001'))
+    
+    # 测试批量股票获取（新增功能）
+    import time
+    start_time = time.time()
+    print(StockMarket().get_market(stock_code=['000001', '000002', '000004', '000005'], start_date='2024-07-22', k_type=1))
+    end_time = time.time()
+    print(f"批量获取耗时: {end_time - start_time}秒")
