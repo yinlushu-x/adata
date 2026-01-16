@@ -8,6 +8,9 @@ TODO 数据返回类型转换
 """
 
 import pandas as pd
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from functools import wraps
+from typing import List, Union
 
 from adata.stock.market.stock_market.stock_market_baidu import StockMarketBaiDu
 from adata.stock.market.stock_market.stock_market_east import StockMarketEast
@@ -98,10 +101,151 @@ class StockMarket(object):
             res_df = self.qq_market.get_market_bar(stock_code=stock_code)
         return res_df
 
+    def get_market_batch(self, stock_codes: Union[str, List[str]], start_date='1990-01-01', end_date=None, k_type=1,
+                         adjust_type: int = 1, max_workers: int = 5):
+        """
+        批量获取多个股票的行情（多线程）
+        :param stock_codes: 股票代码，可以是单个字符串或列表
+        :param start_date: 开始时间
+        :param end_date: 结束日期
+        :param k_type: k线类型：1.日；2.周；3.月,4季度，5.5min，15.15min，30.30min，60.60min 默认：1 日k
+        :param adjust_type: k线复权类型：0.不复权；1.前复权；2.后复权 默认：1 前复权
+        :param max_workers: 最大线程数，默认为5
+        :return: 字典，key为股票代码，value为对应股票的行情数据
+        """
+        if isinstance(stock_codes, str):
+            stock_codes = [stock_codes]
+        
+        results = {}
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_code = {
+                executor.submit(self.get_market, stock_code, start_date, end_date, k_type, adjust_type): stock_code
+                for stock_code in stock_codes
+            }
+            
+            for future in as_completed(future_to_code):
+                stock_code = future_to_code[future]
+                try:
+                    results[stock_code] = future.result()
+                except Exception as e:
+                    results[stock_code] = pd.DataFrame()
+                    print(f"Error fetching data for {stock_code}: {e}")
+        
+        return results
+
+    def get_market_min_batch(self, stock_codes: Union[str, List[str]], max_workers: int = 5):
+        """
+        批量获取多个股票的今日分时行情（多线程）
+        :param stock_codes: 股票代码，可以是单个字符串或列表
+        :param max_workers: 最大线程数，默认为5
+        :return: 字典，key为股票代码，value为对应股票的分时行情数据
+        """
+        if isinstance(stock_codes, str):
+            stock_codes = [stock_codes]
+        
+        results = {}
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_code = {
+                executor.submit(self.get_market_min, stock_code): stock_code
+                for stock_code in stock_codes
+            }
+            
+            for future in as_completed(future_to_code):
+                stock_code = future_to_code[future]
+                try:
+                    results[stock_code] = future.result()
+                except Exception as e:
+                    results[stock_code] = pd.DataFrame()
+                    print(f"Error fetching minute data for {stock_code}: {e}")
+        
+        return results
+
+    def get_market_five_batch(self, stock_codes: Union[str, List[str]], max_workers: int = 5):
+        """
+        批量获取多个股票的5档行情（多线程）
+        :param stock_codes: 股票代码，可以是单个字符串或列表
+        :param max_workers: 最大线程数，默认为5
+        :return: 字典，key为股票代码，value为对应股票的5档行情数据
+        """
+        if isinstance(stock_codes, str):
+            stock_codes = [stock_codes]
+        
+        results = {}
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_code = {
+                executor.submit(self.get_market_five, stock_code): stock_code
+                for stock_code in stock_codes
+            }
+            
+            for future in as_completed(future_to_code):
+                stock_code = future_to_code[future]
+                try:
+                    results[stock_code] = future.result()
+                except Exception as e:
+                    results[stock_code] = pd.DataFrame()
+                    print(f"Error fetching five-level data for {stock_code}: {e}")
+        
+        return results
+
+    def get_market_bar_batch(self, stock_codes: Union[str, List[str]], max_workers: int = 5):
+        """
+        批量获取多个股票的分时成交（多线程）
+        :param stock_codes: 股票代码，可以是单个字符串或列表
+        :param max_workers: 最大线程数，默认为5
+        :return: 字典，key为股票代码，value为对应股票的分时成交数据
+        """
+        if isinstance(stock_codes, str):
+            stock_codes = [stock_codes]
+        
+        results = {}
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_code = {
+                executor.submit(self.get_market_bar, stock_code): stock_code
+                for stock_code in stock_codes
+            }
+            
+            for future in as_completed(future_to_code):
+                stock_code = future_to_code[future]
+                try:
+                    results[stock_code] = future.result()
+                except Exception as e:
+                    results[stock_code] = pd.DataFrame()
+                    print(f"Error fetching bar data for {stock_code}: {e}")
+        
+        return results
+
 
 if __name__ == '__main__':
+    print("=== 单股票测试 ===")
     print(StockMarket().get_market(stock_code='002230', start_date='2024-07-22', k_type=1))
     print(StockMarket().get_market_min(stock_code='000001'))
     print(StockMarket().list_market_current(code_list=['000001', '600001', '000795', '872925']))
     print(StockMarket().get_market_five(stock_code='000001'))
     print(StockMarket().get_market_bar(stock_code='000001'))
+    
+    print("\n=== 多线程批量测试 ===")
+    print("批量获取行情数据:")
+    batch_results = StockMarket().get_market_batch(
+        stock_codes=['000001', '600001', '000795', '002230'], 
+        start_date='2024-07-01', 
+        k_type=1,
+        max_workers=4
+    )
+    for code, df in batch_results.items():
+        print(f"{code}: {len(df)} 条数据")
+    
+    print("\n批量获取分时行情:")
+    min_batch = StockMarket().get_market_min_batch(
+        stock_codes=['000001', '600001', '000795'], 
+        max_workers=3
+    )
+    for code, df in min_batch.items():
+        print(f"{code}: {len(df)} 条数据")
+    
+    print("\n批量获取5档行情:")
+    five_batch = StockMarket().get_market_five_batch(
+        stock_codes=['000001', '600001'], 
+        max_workers=2
+    )
+    for code, df in five_batch.items():
+        print(f"{code}: {len(df)} 条数据")
