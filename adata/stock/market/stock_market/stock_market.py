@@ -8,11 +8,34 @@ TODO 数据返回类型转换
 """
 
 import pandas as pd
+from concurrent.futures import ThreadPoolExecutor
+from functools import wraps
 
 from adata.stock.market.stock_market.stock_market_baidu import StockMarketBaiDu
 from adata.stock.market.stock_market.stock_market_east import StockMarketEast
 from adata.stock.market.stock_market.stock_market_qq import StockMarketQQ
 from adata.stock.market.stock_market.stock_market_sina import StockMarketSina
+
+
+def parallel_stock_fetch(func):
+    @wraps(func)
+    def wrapper(self, stock_code, *args, **kwargs):
+        if isinstance(stock_code, list):
+            results = []
+            with ThreadPoolExecutor() as executor:
+                futures = [executor.submit(func, self, code, *args, **kwargs) for code in stock_code]
+                for future in futures:
+                    try:
+                        result = future.result()
+                        if not result.empty:
+                            results.append(result)
+                    except Exception as e:
+                        print(f"获取股票数据失败: {e}")
+            if results:
+                return pd.concat(results, ignore_index=True)
+            return pd.DataFrame()
+        return func(self, stock_code, *args, **kwargs)
+    return wrapper
 
 
 class StockMarket(object):
@@ -27,6 +50,7 @@ class StockMarket(object):
         self.baidu_market = StockMarketBaiDu()
         self.east_market = StockMarketEast()
 
+    @parallel_stock_fetch
     def get_market(self, stock_code: str = '000001', start_date='1990-01-01', end_date=None, k_type=1,
                    adjust_type: int = 1):
         """
