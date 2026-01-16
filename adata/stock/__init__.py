@@ -9,6 +9,7 @@ from adata.stock.finance import finance
 from adata.stock.index import index
 from adata.stock.info import info
 from adata.stock.market import market
+from adata.stock.market.stock_market_analysis import StockMarketAnalysis
 
 
 class Stock(object):
@@ -18,6 +19,7 @@ class Stock(object):
         self.index = index
         self.market = market
         self.finance = finance
+        self.analysis = StockMarketAnalysis()
 
 
 stock = Stock()

@@ -11,9 +11,11 @@ from adata.stock.market.concepth_market import StockMarketConcept
 from adata.stock.market.index_market import StockMarketIndex
 from adata.stock.market.stock_dividend import StockDividend
 from adata.stock.market.stock_market import StockMarket
+from adata.stock.market.stock_market_analysis import StockMarketAnalysis
 
 
-class Market(StockCapitalFlow, ConceptCapitalFlow, StockMarket, StockMarketConcept, StockDividend, StockMarketIndex):
+class Market(StockCapitalFlow, ConceptCapitalFlow, StockMarket, StockMarketConcept, StockDividend, StockMarketIndex,
+             StockMarketAnalysis):
 
     def __init__(self) -> None:
         super().__init__()
