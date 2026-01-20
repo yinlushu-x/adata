@@ -63,15 +63,27 @@ class StockMarketEast(StockMarketTemplate):
         df = pd.DataFrame(data=data, columns=["trade_date", "open", "close", "high", "low", "volume", "amount",
                                               '', "change_pct", "change", "turnover_ratio"])
         # 4.清洗数据
-        df['pre_close'] = df['close'] - df['change']
+        # 安全地转换数值列，避免异常
+        df['pre_close'] = pd.to_numeric(df['close'], errors='coerce') - pd.to_numeric(df['change'], errors='coerce')
         df['pre_close'] = df['pre_close'].round(2)
-        df['volume'] = df['volume'].astype(int) * 100
-        df['trade_time'] = pd.to_datetime(df['trade_date']).dt.strftime('%Y-%m-%d %H:%M:%S')
-        df['trade_date'] = pd.to_datetime(df['trade_date']).dt.strftime('%Y-%m-%d')
+        
+        # 安全处理成交量
+        df['volume'] = pd.to_numeric(df['volume'], errors='coerce').fillna(0).astype(int) * 100
+        
+        # 处理日期时间
+        df['trade_time'] = pd.to_datetime(df['trade_date'], errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
+        df['trade_date'] = pd.to_datetime(df['trade_date'], errors='coerce').dt.strftime('%Y-%m-%d')
+        
         df['stock_code'] = stock_code
-        numeric_columns = ['open', 'close', 'volume', 'high', 'low', 'amount', 'change', 'change_pct',
-                           'turnover_ratio', 'pre_close']
-        df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric)
+        
+        # 安全转换所有数值列
+        numeric_columns = ['open', 'close', 'high', 'low', 'amount', 'change', 'change_pct', 'turnover_ratio']
+        for col in numeric_columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        # 删除包含空值的行
+        df = df.dropna(subset=['trade_date', 'open', 'close'])
+        
         df.reset_index(inplace=True, drop=True)
         return df[['stock_code', 'trade_time', "trade_date", "open", "close", "high", "low", "volume", "amount",
                    "change_pct", "change", "turnover_ratio", "pre_close"]]
