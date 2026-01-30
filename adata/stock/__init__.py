@@ -5,6 +5,7 @@
 @time: 2023/3/29
 @log: change log
 """
+from adata.stock.analysis import analysis
 from adata.stock.finance import finance
 from adata.stock.index import index
 from adata.stock.info import info
@@ -14,10 +15,11 @@ from adata.stock.market import market
 class Stock(object):
 
     def __init__(self) -> None:
-        self.info = info
-        self.index = index
-        self.market = market
+        self.analysis = analysis
         self.finance = finance
+        self.index = index
+        self.info = info
+        self.market = market
 
 
 stock = Stock()
