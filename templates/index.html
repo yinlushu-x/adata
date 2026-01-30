@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票实时行情 - 成交量前十</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+</head>
+<body>
+    <div class="container-fluid">
+        <header class="row bg-dark text-white py-3 mb-4">
+            <div class="col">
+                <h1 class="h3 mb-0">
+                    <i class="bi bi-graph-up-arrow me-2"></i>
+                    股票实时行情 - 昨日成交量前十
+                </h1>
+            </div>
+            <div class="col-auto">
+                <div class="d-flex align-items-center">
+                    <span id="updateTime" class="me-3">更新时间: --</span>
+                    <button id="refreshBtn" class="btn btn-outline-light btn-sm">
+                        <i class="bi bi-arrow-clockwise me-1"></i>刷新
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="row mb-3">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">热门股票行情</h5>
+                            <div class="spinner-border spinner-border-sm text-primary d-none" id="loadingSpinner" role="status">
+                                <span class="visually-hidden">加载中...</span>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>排名</th>
+                                            <th>股票代码</th>
+                                            <th>股票名称</th>
+                                            <th>当前价格</th>
+                                            <th>涨跌额</th>
+                                            <th>涨跌幅</th>
+                                            <th>成交量</th>
+                                            <th>成交额</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="stockTableBody">
+                                        <tr>
+                                            <td colspan="8" class="text-center py-4">
+                                                <div class="loading-state">
+                                                    <div class="spinner-border text-primary" role="status">
+                                                        <span class="visually-hidden">加载中...</span>
+                                                    </div>
+                                                    <div>正在加载股票数据...</div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>提示：</strong>本页面显示昨日成交量前十的股票实时行情数据，数据每30秒自动刷新一次。
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="row mt-5 py-3 border-top text-muted">
+            <div class="col-12 text-center">
+                <small>股票行情数据仅供参考，不构成投资建议</small>
+            </div>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 页面加载完成后立即获取数据
+            fetchStockData();
+            
+            // 设置定时刷新，每30秒刷新一次
+            setInterval(fetchStockData, 30000);
+            
+            // 手动刷新按钮
+            document.getElementById('refreshBtn').addEventListener('click', function() {
+                fetchStockData();
+            });
+        });
+
+        // 获取股票数据
+        function fetchStockData() {
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const refreshBtn = document.getElementById('refreshBtn');
+            const tableBody = document.getElementById('stockTableBody');
+            
+            // 显示加载状态
+            loadingSpinner.classList.remove('d-none');
+            refreshBtn.disabled = true;
+            
+            fetch('/api/top_stocks')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        updateStockTable(data.data);
+                        document.getElementById('updateTime').textContent = `更新时间: ${data.update_time}`;
+                    } else {
+                        showError('获取股票数据失败');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showError('网络错误，请稍后重试');
+                })
+                .finally(() => {
+                    // 隐藏加载状态
+                    loadingSpinner.classList.add('d-none');
+                    refreshBtn.disabled = false;
+                });
+        }
+
+        // 更新股票表格
+        function updateStockTable(stocks) {
+            const tableBody = document.getElementById('stockTableBody');
+            tableBody.innerHTML = '';
+            
+            if (stocks.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = '<td colspan="8" class="text-center py-4">暂无数据</td>';
+                tableBody.appendChild(row);
+                return;
+            }
+            
+            stocks.forEach((stock, index) => {
+                const row = document.createElement('tr');
+                
+                // 根据涨跌幅设置行样式
+                if (stock.change_class === 'positive') {
+                    row.classList.add('table-success');
+                } else if (stock.change_class === 'negative') {
+                    row.classList.add('table-danger');
+                }
+                
+                row.innerHTML = `
+                    <td class="rank">${index + 1}</td>
+                    <td><span class="stock-code">${stock.code}</span></td>
+                    <td><span class="stock-name">${stock.name}</span></td>
+                    <td><span class="stock-price">${stock.price}</span></td>
+                    <td class="${stock.change_class}">${stock.change}</td>
+                    <td class="${stock.change_class}">${stock.change_pct}</td>
+                    <td><span class="volume">${stock.volume}</span></td>
+                    <td><span class="amount">${stock.amount}</span></td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            const tableBody = document.getElementById('stockTableBody');
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center py-4">
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            ${message}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+    </script>
+</body>
+</html>

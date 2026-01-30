@@ -1,0 +1,416 @@
+/* 股票行情页面样式 - 重新设计 */
+
+:root {
+    --primary-color: #1a73e8;
+    --success-color: #34a853;
+    --danger-color: #ea4335;
+    --warning-color: #fbbc04;
+    --dark-color: #202124;
+    --light-color: #f8f9fa;
+    --border-color: #dadce0;
+    --shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+    --shadow-hover: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
+}
+
+/* 全局样式 */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #f1f3f4;
+    font-family: 'Segoe UI', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+    color: #202124;
+    line-height: 1.5;
+    margin: 0;
+    padding: 0;
+}
+
+/* 容器样式 */
+.container-fluid {
+    padding: 0;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* 页面头部样式 */
+header {
+    background: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%);
+    color: white;
+    padding: 1.5rem 2rem;
+    box-shadow: var(--shadow);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+header h1 {
+    font-size: 1.75rem;
+    font-weight: 500;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+header .bi {
+    margin-right: 0.75rem;
+    font-size: 1.5rem;
+}
+
+#updateTime {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+#refreshBtn {
+    background-color: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: 0.25rem;
+    transition: all 0.2s ease;
+}
+
+#refreshBtn:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    color: white;
+    transform: translateY(-1px);
+}
+
+#refreshBtn:disabled {
+    opacity: 0.7;
+    transform: none;
+}
+
+/* 主要内容区域 */
+main {
+    padding: 2rem;
+}
+
+/* 卡片样式 */
+.card {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+    transition: box-shadow 0.2s ease;
+}
+
+.card:hover {
+    box-shadow: var(--shadow-hover);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem 1.5rem;
+    font-weight: 500;
+    color: var(--dark-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-body {
+    padding: 0;
+}
+
+/* 表格样式 */
+.table-responsive {
+    border-radius: 0 0 8px 8px;
+}
+
+.table {
+    margin-bottom: 0;
+    font-size: 0.95rem;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 500;
+    color: var(--dark-color);
+    padding: 0.75rem 1.5rem;
+    text-align: left;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.table td {
+    padding: 0.875rem 1.5rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(26, 115, 232, 0.04);
+}
+
+/* 涨跌幅颜色 */
+.positive {
+    color: var(--danger-color) !important;
+    font-weight: 500;
+}
+
+.negative {
+    color: var(--success-color) !important;
+    font-weight: 500;
+}
+
+.neutral {
+    color: #5f6368 !important;
+    font-weight: 500;
+}
+
+/* 表格行样式 */
+.table-success {
+    background-color: rgba(52, 168, 83, 0.05) !important;
+}
+
+.table-danger {
+    background-color: rgba(234, 67, 53, 0.05) !important;
+}
+
+/* 股票代码和名称样式 */
+.stock-code {
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-weight: 500;
+    color: var(--dark-color);
+}
+
+.stock-name {
+    font-weight: 400;
+    color: #5f6368;
+}
+
+/* 价格样式 */
+.stock-price {
+    font-weight: 500;
+    font-size: 1rem;
+    color: var(--dark-color);
+}
+
+/* 成交量和成交额样式 */
+.volume, .amount {
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-size: 0.9rem;
+    color: #5f6368;
+}
+
+/* 加载动画 */
+.spinner-border {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* 提示框样式 */
+.alert {
+    border-radius: 8px;
+    border: none;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.alert-info {
+    background-color: rgba(26, 115, 232, 0.08);
+    color: #1a73e8;
+}
+
+.alert-danger {
+    background-color: rgba(234, 67, 53, 0.08);
+    color: var(--danger-color);
+}
+
+/* 页脚样式 */
+footer {
+    background-color: white;
+    border-top: 1px solid var(--border-color);
+    padding: 1.5rem 2rem;
+    text-align: center;
+    color: #5f6368;
+    font-size: 0.875rem;
+}
+
+/* 排名样式 */
+.rank {
+    font-weight: 500;
+    color: var(--primary-color);
+    width: 40px;
+}
+
+/* 加载状态样式 */
+.loading-state {
+    padding: 3rem 1.5rem;
+    text-align: center;
+    color: #5f6368;
+}
+
+.loading-state .spinner-border {
+    margin-bottom: 1rem;
+}
+
+/* 刷新按钮动画 */
+.bi-arrow-clockwise {
+    transition: transform 0.5s ease;
+}
+
+#refreshBtn:disabled .bi-arrow-clockwise {
+    animation: spin 1s infinite linear;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 响应式调整 */
+@media (max-width: 992px) {
+    .container-fluid {
+        padding: 0 1rem;
+    }
+    
+    main {
+        padding: 1.5rem 1rem;
+    }
+    
+    header {
+        padding: 1.25rem 1rem;
+    }
+    
+    .table th, .table td {
+        padding: 0.75rem 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    header h1 {
+        font-size: 1.5rem;
+    }
+    
+    #updateTime {
+        font-size: 0.8rem;
+        margin-top: 0.5rem;
+    }
+    
+    .table {
+        font-size: 0.875rem;
+    }
+    
+    .table th, .table td {
+        padding: 0.625rem 0.75rem;
+    }
+    
+    .stock-price {
+        font-size: 0.9rem;
+    }
+    
+    .volume, .amount {
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 576px) {
+    header {
+        padding: 1rem 0.75rem;
+    }
+    
+    header h1 {
+        font-size: 1.25rem;
+    }
+    
+    main {
+        padding: 1rem 0.5rem;
+    }
+    
+    .card-header {
+        padding: 0.75rem 1rem;
+    }
+    
+    .table th, .table td {
+        padding: 0.5rem;
+    }
+    
+    .table th:nth-child(n+5), .table td:nth-child(n+5) {
+        font-size: 0.75rem;
+    }
+    
+    footer {
+        padding: 1rem 0.75rem;
+    }
+}
+
+/* 暗色模式支持 */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --light-color: #202124;
+        --dark-color: #e8eaed;
+        --border-color: #5f6368;
+    }
+    
+    body {
+        background-color: #121212;
+        color: #e8eaed;
+    }
+    
+    .card {
+        background-color: #1e1e1e;
+        border-color: #5f6368;
+    }
+    
+    .card-header {
+        background-color: #2d2d30;
+        border-color: #5f6368;
+    }
+    
+    .table th {
+        background-color: #2d2d30;
+        color: #e8eaed;
+        border-color: #5f6368;
+    }
+    
+    .table td {
+        border-color: #333;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(66, 133, 244, 0.1);
+    }
+    
+    .stock-name {
+        color: #9aa0a6;
+    }
+    
+    .volume, .amount {
+        color: #9aa0a6;
+    }
+    
+    footer {
+        background-color: #1e1e1e;
+        border-color: #5f6368;
+        color: #9aa0a6;
+    }
+    
+    .alert-info {
+        background-color: rgba(66, 133, 244, 0.1);
+        color: #8ab4f8;
+    }
+    
+    .alert-danger {
+        background-color: rgba(234, 67, 53, 0.1);
+        color: #f28b82;
+    }
+}
