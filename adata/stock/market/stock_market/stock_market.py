@@ -7,12 +7,43 @@
 TODO 数据返回类型转换
 """
 
+import concurrent.futures
 import pandas as pd
+from functools import wraps
+from typing import List, Optional
 
 from adata.stock.market.stock_market.stock_market_baidu import StockMarketBaiDu
 from adata.stock.market.stock_market.stock_market_east import StockMarketEast
 from adata.stock.market.stock_market.stock_market_qq import StockMarketQQ
 from adata.stock.market.stock_market.stock_market_sina import StockMarketSina
+
+
+def threaded_market(max_workers: int = 3):
+    """
+    多线程装饰器，用于支持批量股票代码的并行获取
+    :param max_workers: 最大线程数，默认10
+    :return: 装饰器函数
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, stock_code=None, *args, **kwargs):
+            if isinstance(stock_code, str):
+                return func(self, stock_code, *args, **kwargs)
+            elif isinstance(stock_code, list):
+                results = []
+                with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = [executor.submit(func, self, code, *args, **kwargs) for code in stock_code]
+                    for future in concurrent.futures.as_completed(futures):
+                        result = future.result()
+                        if not result.empty:
+                            results.append(result)
+                if results:
+                    return pd.concat(results, ignore_index=True)
+                return pd.DataFrame()
+            else:
+                return func(self, stock_code, *args, **kwargs)
+        return wrapper
+    return decorator
 
 
 class StockMarket(object):
@@ -27,11 +58,12 @@ class StockMarket(object):
         self.baidu_market = StockMarketBaiDu()
         self.east_market = StockMarketEast()
 
+    @threaded_market(max_workers=10)
     def get_market(self, stock_code: str = '000001', start_date='1990-01-01', end_date=None, k_type=1,
                    adjust_type: int = 1):
         """
         获取单个股票的行情
-        :param stock_code: 股票代码
+        :param stock_code: 股票代码（支持单个字符串或股票代码列表）
         :param start_date: 开始时间
         :param end_date: 结束日期
         :param k_type: k线类型：1.日；2.周；3.月,4季度，5.5min，15.15min，30.30min，60.60min 默认：1 日k
@@ -101,7 +133,8 @@ class StockMarket(object):
 
 if __name__ == '__main__':
     print(StockMarket().get_market(stock_code='002230', start_date='2024-07-22', k_type=1))
-    print(StockMarket().get_market_min(stock_code='000001'))
-    print(StockMarket().list_market_current(code_list=['000001', '600001', '000795', '872925']))
-    print(StockMarket().get_market_five(stock_code='000001'))
-    print(StockMarket().get_market_bar(stock_code='000001'))
+    # print(StockMarket().get_market_min(stock_code='000001'))
+    # print(StockMarket().list_market_current(code_list=['000001', '600001', '000795', '872925']))
+    # print(StockMarket().get_market_five(stock_code='000001'))
+    # print(StockMarket().get_market_bar(stock_code='000001'))
+    print(StockMarket().get_market(stock_code=['000001', '002230', '600001'], start_date='2024-07-22', k_type=1))
