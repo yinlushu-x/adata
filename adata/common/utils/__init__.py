@@ -6,6 +6,7 @@
 @log: change log
 """
 from .snowflake import worker
+from .sunrequests import rate_limiter
 from .sunrequests import sun_requests as requests
 
 

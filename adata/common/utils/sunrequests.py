@@ -10,8 +10,63 @@
 
 import threading
 import time
+from urllib.parse import urlparse
 
 import requests
+
+
+class RateLimiter(object):
+    _instance = None
+    _lock = threading.Lock()
+    _default_limit = 30
+    _domain_limits = {}
+    _request_times = {}
+
+    def __new__(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+        return cls._instance
+
+    @classmethod
+    def set_default_limit(cls, limit: int):
+        cls._default_limit = limit
+
+    @classmethod
+    def set_domain_limit(cls, domain: str, limit: int):
+        cls._domain_limits[domain] = limit
+
+    @classmethod
+    def get_limit(cls, domain: str) -> int:
+        return cls._domain_limits.get(domain, cls._default_limit)
+
+    @classmethod
+    def _get_domain(cls, url: str) -> str:
+        parsed = urlparse(url)
+        return parsed.netloc
+
+    @classmethod
+    def wait_if_needed(cls, url: str):
+        domain = cls._get_domain(url)
+        limit = cls.get_limit(domain)
+
+        with cls._lock:
+            if domain not in cls._request_times:
+                cls._request_times[domain] = []
+
+            now = time.time()
+            one_minute_ago = now - 60
+            cls._request_times[domain] = [t for t in cls._request_times[domain] if t > one_minute_ago]
+
+            if len(cls._request_times[domain]) >= limit:
+                oldest_time = cls._request_times[domain][0]
+                wait_time = oldest_time + 60 - now
+                if wait_time > 0:
+                    time.sleep(wait_time)
+                    cls._request_times[domain] = [t for t in cls._request_times[domain] if t > time.time() - 60]
+
+            cls._request_times[domain].append(time.time())
 
 
 class SunProxy(object):
@@ -58,6 +113,7 @@ class SunRequests(object):
         :param kwargs: 其它 requests 参数，用法相同
         :return: res
         """
+        RateLimiter.wait_if_needed(url)
         # 1. 获取设置代理
         proxies = self.__get_proxies(proxies)
         # 2. 请求数据结果
@@ -91,3 +147,4 @@ class SunRequests(object):
 
 
 sun_requests = SunRequests()
+rate_limiter = RateLimiter()
