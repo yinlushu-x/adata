@@ -10,7 +10,7 @@ import logging
 
 from adata.__version__ import __version__
 from adata.bond import bond
-from adata.common.utils.sunrequests import SunProxy
+from adata.common.utils.sunrequests import SunProxy, sun_requests
 from adata.fund import fund
 from adata.sentiment import sentiment
 from adata.stock import stock
@@ -30,6 +30,17 @@ def proxy(is_proxy=False, ip: str = None, proxy_url: str = None):
     SunProxy.set('is_proxy', is_proxy)
     SunProxy.set('ip', ip)
     SunProxy.set('proxy_url', proxy_url)
+    return
+
+
+def set_rate_limit(domain='*', max_requests=30, window_seconds=60):
+    """
+    设置请求频率限制
+    :param domain: 域名，如 'www.baidu.com'，使用 '*' 设置所有域名的默认限制
+    :param max_requests: 时间窗口内最大请求次数，默认30次
+    :param window_seconds: 时间窗口（秒），默认60秒
+    """
+    sun_requests.set_rate_limit(domain, max_requests, window_seconds)
     return
 
 
