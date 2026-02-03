@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票实时行情 - 昨日成交量TOP10</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1f2e 0%, #0d1117 100%);
+            min-height: 100vh;
+            color: #e6edf3;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 0;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #58a6ff, #a371f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #8b949e;
+            font-size: 1.1rem;
+            font-weight: 300;
+        }
+
+        .update-info {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .update-time {
+            color: #8b949e;
+            font-size: 0.9rem;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(90deg, #238636, #2ea043);
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(35, 134, 54, 0.4);
+        }
+
+        .refresh-btn.loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .refresh-btn.loading::after {
+            content: '';
+            width: 14px;
+            height: 14px;
+            border: 2px solid transparent;
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #8b949e;
+            font-size: 0.9rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: #30363d;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #238636;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(20px);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(22, 27, 34, 0.8);
+            border: 1px solid #30363d;
+            border-radius: 16px;
+            padding: 24px;
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s, border-color 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            border-color: #58a6ff;
+        }
+
+        .stat-label {
+            color: #8b949e;
+            font-size: 0.875rem;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #e6edf3;
+        }
+
+        .stat-change {
+            font-size: 0.875rem;
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        .positive { color: #3fb950; }
+        .negative { color: #f85149; }
+
+        .table-container {
+            background: rgba(22, 27, 34, 0.8);
+            border: 1px solid #30363d;
+            border-radius: 16px;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .table-header {
+            padding: 24px;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #e6edf3;
+        }
+
+        .market-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.875rem;
+            color: #8b949e;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #3fb950;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: rgba(48, 54, 61, 0.5);
+        }
+
+        th {
+            padding: 16px 20px;
+            text-align: left;
+            font-weight: 500;
+            color: #8b949e;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: color 0.3s;
+            user-select: none;
+        }
+
+        th:hover {
+            color: #e6edf3;
+        }
+
+        th.sortable::after {
+            content: ' ↕';
+            opacity: 0.5;
+        }
+
+        th.sort-asc::after {
+            content: ' ↑';
+            opacity: 1;
+        }
+
+        th.sort-desc::after {
+            content: ' ↓';
+            opacity: 1;
+        }
+
+        td {
+            padding: 20px;
+            border-bottom: 1px solid #21262d;
+            font-size: 0.95rem;
+        }
+
+        tbody tr {
+            transition: background 0.3s;
+        }
+
+        tbody tr:hover {
+            background: rgba(48, 54, 61, 0.3);
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .rank {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.875rem;
+        }
+
+        .rank.top3 {
+            background: linear-gradient(135deg, #ffd700, #ffaa00);
+            color: #1a1f2e;
+        }
+
+        .rank.normal {
+            background: #30363d;
+            color: #e6edf3;
+        }
+
+        .stock-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stock-name {
+            font-weight: 600;
+            color: #e6edf3;
+            font-size: 1rem;
+        }
+
+        .stock-code {
+            color: #8b949e;
+            font-size: 0.8rem;
+            font-family: 'Monaco', 'Consolas', monospace;
+        }
+
+        .price {
+            font-weight: 600;
+            font-size: 1.1rem;
+            font-family: 'Monaco', 'Consolas', monospace;
+        }
+
+        .change-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            font-family: 'Monaco', 'Consolas', monospace;
+        }
+
+        .change-badge.positive {
+            background: rgba(63, 185, 80, 0.15);
+            color: #3fb950;
+        }
+
+        .change-badge.negative {
+            background: rgba(248, 81, 73, 0.15);
+            color: #f85149;
+        }
+
+        .volume, .amount {
+            font-family: 'Monaco', 'Consolas', monospace;
+            color: #e6edf3;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(13, 17, 23, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.3s;
+        }
+
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #30363d;
+            border-top-color: #58a6ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            color: #8b949e;
+            font-size: 1rem;
+        }
+
+        .error-message {
+            background: rgba(248, 81, 73, 0.1);
+            border: 1px solid rgba(248, 81, 73, 0.3);
+            color: #f85149;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.75rem;
+            }
+
+            .table-header {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+
+            th, td {
+                padding: 12px 8px;
+                font-size: 0.8rem;
+            }
+
+            .stock-name {
+                font-size: 0.9rem;
+            }
+
+            .stock-code {
+                font-size: 0.7rem;
+            }
+
+            .change-badge {
+                padding: 4px 8px;
+                font-size: 0.75rem;
+            }
+
+            .update-info {
+                flex-direction: column;
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text">正在加载行情数据...</div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>📈 股票实时行情</h1>
+            <p class="subtitle">昨日成交量 TOP 10 股票实时追踪</p>
+            <div class="update-info">
+                <span class="update-time" id="updateTime">更新时间: --</span>
+                <button class="refresh-btn" id="refreshBtn" onclick="manualRefresh()">
+                    <span>🔄 立即刷新</span>
+                </button>
+                <div class="auto-refresh">
+                    <span>自动刷新</span>
+                    <div class="toggle-switch active" id="autoRefreshToggle" onclick="toggleAutoRefresh()"></div>
+                </div>
+            </div>
+        </header>
+
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-label">上涨家数</div>
+                <div class="stat-value positive" id="upCount">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">下跌家数</div>
+                <div class="stat-value negative" id="downCount">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">平均涨跌幅</div>
+                <div class="stat-value" id="avgChange">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">总成交额</div>
+                <div class="stat-value" id="totalAmount">--</div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div class="table-header">
+                <h2 class="table-title">📊 股票行情列表</h2>
+                <div class="market-status">
+                    <span class="status-dot"></span>
+                    <span>实时行情中</span>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>排名</th>
+                        <th>股票名称</th>
+                        <th class="sortable" onclick="sortTable('price')">最新价</th>
+                        <th class="sortable" onclick="sortTable('change_pct')">涨跌幅</th>
+                        <th class="sortable" onclick="sortTable('change')">涨跌额</th>
+                        <th class="sortable" onclick="sortTable('volume')">成交量</th>
+                        <th class="sortable" onclick="sortTable('amount')">成交额</th>
+                    </tr>
+                </thead>
+                <tbody id="stockTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let stockData = [];
+        let autoRefreshInterval = null;
+        let currentSort = { field: null, asc: true };
+
+        // 格式化数字
+        function formatNumber(num) {
+            if (num >= 100000000) {
+                return (num / 100000000).toFixed(2) + '亿';
+            } else if (num >= 10000) {
+                return (num / 10000).toFixed(2) + '万';
+            }
+            return num.toLocaleString();
+        }
+
+        // 格式化价格
+        function formatPrice(price) {
+            return price.toFixed(2);
+        }
+
+        // 格式化涨跌幅
+        function formatChange(change) {
+            const sign = change >= 0 ? '+' : '';
+            return sign + change.toFixed(2);
+        }
+
+        // 格式化百分比
+        function formatPercent(percent) {
+            const sign = percent >= 0 ? '+' : '';
+            return sign + percent.toFixed(2) + '%';
+        }
+
+        // 获取数据
+        async function fetchData() {
+            try {
+                const response = await fetch('/api/top10');
+                const result = await response.json();
+
+                if (result.success) {
+                    stockData = result.data;
+                    updateUI(result.data, result.update_time);
+                } else {
+                    showError(result.error);
+                }
+            } catch (error) {
+                showError('获取数据失败: ' + error.message);
+            }
+        }
+
+        // 更新UI
+        function updateUI(data, updateTime) {
+            // 隐藏加载动画
+            document.getElementById('loadingOverlay').classList.add('hidden');
+
+            // 更新时间
+            document.getElementById('updateTime').textContent = '更新时间: ' + updateTime;
+
+            // 更新统计卡片
+            updateStats(data);
+
+            // 更新表格
+            updateTable(data);
+        }
+
+        // 更新统计信息
+        function updateStats(data) {
+            let upCount = 0;
+            let downCount = 0;
+            let totalChange = 0;
+            let totalAmount = 0;
+
+            data.forEach(stock => {
+                if (stock.change_pct > 0) upCount++;
+                else if (stock.change_pct < 0) downCount++;
+                totalChange += stock.change_pct;
+                totalAmount += stock.amount;
+            });
+
+            const avgChange = data.length > 0 ? totalChange / data.length : 0;
+
+            document.getElementById('upCount').textContent = upCount;
+            document.getElementById('downCount').textContent = downCount;
+
+            const avgChangeEl = document.getElementById('avgChange');
+            avgChangeEl.textContent = formatPercent(avgChange);
+            avgChangeEl.className = 'stat-value ' + (avgChange >= 0 ? 'positive' : 'negative');
+
+            document.getElementById('totalAmount').textContent = formatNumber(totalAmount);
+        }
+
+        // 更新表格
+        function updateTable(data) {
+            const tbody = document.getElementById('stockTableBody');
+            tbody.innerHTML = '';
+
+            data.forEach((stock, index) => {
+                const row = document.createElement('tr');
+                const rank = index + 1;
+                const rankClass = rank <= 3 ? 'top3' : 'normal';
+                const changeClass = stock.change_pct >= 0 ? 'positive' : 'negative';
+
+                row.innerHTML = `
+                    <td><span class="rank ${rankClass}">${rank}</span></td>
+                    <td>
+                        <div class="stock-info">
+                            <span class="stock-name">${stock.stock_name}</span>
+                            <span class="stock-code">${stock.stock_code}</span>
+                        </div>
+                    </td>
+                    <td class="price">${formatPrice(stock.price)}</td>
+                    <td><span class="change-badge ${changeClass}">${formatPercent(stock.change_pct)}</span></td>
+                    <td class="${changeClass}">${formatChange(stock.change)}</td>
+                    <td class="volume">${formatNumber(stock.volume)}</td>
+                    <td class="amount">${formatNumber(stock.amount)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // 排序表格
+        function sortTable(field) {
+            if (currentSort.field === field) {
+                currentSort.asc = !currentSort.asc;
+            } else {
+                currentSort.field = field;
+                currentSort.asc = false;
+            }
+
+            // 更新表头样式
+            document.querySelectorAll('th').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+            });
+
+            const th = document.querySelector(`th[onclick="sortTable('${field}')"]`);
+            if (th) {
+                th.classList.add(currentSort.asc ? 'sort-asc' : 'sort-desc');
+            }
+
+            // 排序数据
+            const sortedData = [...stockData].sort((a, b) => {
+                let aVal = a[field];
+                let bVal = b[field];
+
+                if (typeof aVal === 'string') {
+                    aVal = parseFloat(aVal);
+                    bVal = parseFloat(bVal);
+                }
+
+                return currentSort.asc ? aVal - bVal : bVal - aVal;
+            });
+
+            updateTable(sortedData);
+        }
+
+        // 显示错误
+        function showError(message) {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+            const container = document.querySelector('.container');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            container.insertBefore(errorDiv, container.children[1]);
+        }
+
+        // 手动刷新
+        async function manualRefresh() {
+            const btn = document.getElementById('refreshBtn');
+            btn.classList.add('loading');
+
+            await fetchData();
+
+            btn.classList.remove('loading');
+        }
+
+        // 切换自动刷新
+        function toggleAutoRefresh() {
+            const toggle = document.getElementById('autoRefreshToggle');
+            toggle.classList.toggle('active');
+
+            if (toggle.classList.contains('active')) {
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+            }
+        }
+
+        // 开始自动刷新
+        function startAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+            autoRefreshInterval = setInterval(fetchData, 10000); // 10秒刷新一次
+        }
+
+        // 停止自动刷新
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+
+        // 页面加载时获取数据
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchData();
+            startAutoRefresh();
+        });
+
+        // 页面卸载时清理
+        window.addEventListener('beforeunload', () => {
+            stopAutoRefresh();
+        });
+    </script>
+</body>
+</html>
