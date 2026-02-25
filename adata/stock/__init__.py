@@ -5,6 +5,7 @@
 @time: 2023/3/29
 @log: change log
 """
+from adata.stock.analysis import analysis
 from adata.stock.finance import finance
 from adata.stock.index import index
 from adata.stock.info import info
@@ -18,6 +19,7 @@ class Stock(object):
         self.index = index
         self.market = market
         self.finance = finance
+        self.analysis = analysis
 
 
 stock = Stock()
