@@ -10,8 +10,89 @@
 
 import threading
 import time
+from urllib.parse import urlparse
+from collections import defaultdict
 
 import requests
+
+
+class RateLimiter:
+    _instance = None
+    _lock = threading.Lock()
+
+    def __new__(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._instance._initialized = False
+        return cls._instance
+
+    def __init__(self):
+        if self._initialized:
+            return
+        self._initialized = True
+        self._lock = threading.Lock()
+        self._default_limit = 30
+        self._domain_limits = {}
+        self._requests = defaultdict(list)
+
+    def set_limit(self, domain, limit):
+        with self._lock:
+            if limit <= 0:
+                self._domain_limits[domain] = None
+            else:
+                self._domain_limits[domain] = limit
+
+    def set_default_limit(self, limit):
+        with self._lock:
+            self._default_limit = max(1, limit)
+
+    def get_limit(self, domain):
+        with self._lock:
+            if domain in self._domain_limits:
+                return self._domain_limits[domain]
+            return self._default_limit
+
+    def _get_domain(self, url):
+        parsed = urlparse(url)
+        return parsed.netloc
+
+    def wait(self, url):
+        domain = self._get_domain(url)
+        limit = self.get_limit(domain)
+        if limit is None:
+            return
+
+        now = time.time()
+        window_start = now - 60
+
+        with self._lock:
+            timestamps = self._requests[domain]
+            timestamps = [t for t in timestamps if t > window_start]
+
+            while len(timestamps) >= limit:
+                window_start = timestamps[0]
+                wait_time = 60 - (now - window_start)
+                if wait_time > 0:
+                    time.sleep(wait_time)
+                now = time.time()
+                window_start = now - 60
+                timestamps = [t for t in timestamps if t > window_start]
+
+            timestamps.append(now)
+            self._requests[domain] = timestamps
+
+
+_rate_limiter = RateLimiter()
+
+
+def set_rate_limit(domain, limit):
+    _rate_limiter.set_limit(domain, limit)
+
+
+def set_default_rate_limit(limit):
+    _rate_limiter.set_default_limit(limit)
 
 
 class SunProxy(object):
@@ -58,6 +139,8 @@ class SunRequests(object):
         :param kwargs: 其它 requests 参数，用法相同
         :return: res
         """
+        # 0. 频率限制
+        _rate_limiter.wait(url)
         # 1. 获取设置代理
         proxies = self.__get_proxies(proxies)
         # 2. 请求数据结果
