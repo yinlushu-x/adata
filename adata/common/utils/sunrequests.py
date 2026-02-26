@@ -10,8 +10,62 @@
 
 import threading
 import time
+from collections import defaultdict
+from urllib.parse import urlparse
 
 import requests
+
+
+class RateLimiter:
+    """
+    基于令牌桶算法的频率限制器
+    支持每个域名独立的请求频率控制
+    """
+    _instance_lock = threading.Lock()
+
+    def __init__(self, default_rate: int = 30):
+        self._default_rate = default_rate
+        self._domain_rates = {}
+        self._domain_buckets = defaultdict(self._create_bucket)
+        self._lock = threading.Lock()
+
+    def _create_bucket(self):
+        return {'tokens': self._default_rate, 'last_update': time.time()}
+
+    def set_rate_limit(self, domain: str, requests_per_minute: int):
+        """设置特定域名的请求频率限制"""
+        with self._lock:
+            self._domain_rates[domain] = requests_per_minute
+            self._domain_buckets[domain] = {'tokens': requests_per_minute, 'last_update': time.time()}
+
+    def set_default_rate(self, requests_per_minute: int):
+        """设置默认请求频率限制"""
+        with self._lock:
+            self._default_rate = requests_per_minute
+
+    def get_rate(self, domain: str) -> int:
+        """获取域名的请求频率限制"""
+        return self._domain_rates.get(domain, self._default_rate)
+
+    def acquire(self, domain: str):
+        """获取请求许可，如果超过限制则等待"""
+        with self._lock:
+            bucket = self._domain_buckets[domain]
+            rate = self._domain_rates.get(domain, self._default_rate)
+            now = time.time()
+            elapsed = now - bucket['last_update']
+            bucket['tokens'] = min(rate, bucket['tokens'] + elapsed * (rate / 60.0))
+            bucket['last_update'] = now
+            if bucket['tokens'] < 1:
+                wait_time = (1 - bucket['tokens']) * (60.0 / rate)
+                time.sleep(wait_time)
+                bucket['tokens'] = 0
+                bucket['last_update'] = time.time()
+            else:
+                bucket['tokens'] -= 1
+
+
+_rate_limiter = RateLimiter()
 
 
 class SunProxy(object):
@@ -46,6 +100,32 @@ class SunRequests(object):
         super().__init__()
         self.sun_proxy = sun_proxy
 
+    @staticmethod
+    def set_rate_limit(domain: str, requests_per_minute: int):
+        """
+        设置特定域名的请求频率限制
+        :param domain: 域名，如 'eastmoney.com' 或 '10jqka.com.cn'
+        :param requests_per_minute: 每分钟最大请求数
+        """
+        _rate_limiter.set_rate_limit(domain, requests_per_minute)
+
+    @staticmethod
+    def set_default_rate(requests_per_minute: int):
+        """
+        设置默认请求频率限制
+        :param requests_per_minute: 每分钟最大请求数，默认30
+        """
+        _rate_limiter.set_default_rate(requests_per_minute)
+
+    @staticmethod
+    def get_rate(domain: str) -> int:
+        """
+        获取域名的请求频率限制
+        :param domain: 域名
+        :return: 每分钟最大请求数
+        """
+        return _rate_limiter.get_rate(domain)
+
     def request(self, method='get', url=None, times=3, retry_wait_time=1588, proxies=None, wait_time=None, **kwargs):
         """
         简单封装的请求，参考requests，增加循环次数和次数之间的等待时间
@@ -58,6 +138,10 @@ class SunRequests(object):
         :param kwargs: 其它 requests 参数，用法相同
         :return: res
         """
+        # 0. 频率限制
+        domain = urlparse(url).netloc
+        if domain:
+            _rate_limiter.acquire(domain)
         # 1. 获取设置代理
         proxies = self.__get_proxies(proxies)
         # 2. 请求数据结果
