@@ -46,8 +46,10 @@ class SunRequests(object):
     def __init__(self, sun_proxy: SunProxy = None) -> None:
         super().__init__()
         self.sun_proxy = sun_proxy
-        # 域名请求频率限制
-        self._rate_limit = {}
+        # 域名请求频率限制配置: {domain: limit_per_minute}
+        self._domain_limits = {}
+        # 域名请求计数: {domain: {'count': int, 'current_time': int}}
+        self._domain_requests = {}
         # 默认每分钟请求次数限制
         self._default_limit = 30
         # 线程锁
@@ -60,7 +62,7 @@ class SunRequests(object):
         :param limit: 每分钟请求次数
         """
         with self._lock:
-            self._rate_limit[domain] = limit
+            self._domain_limits[domain] = limit
 
     def _check_rate_limit(self, url):
         """
@@ -69,35 +71,37 @@ class SunRequests(object):
         """
         parsed_url = urlparse(url)
         domain = parsed_url.netloc
-        current_time = int(time.time() // 60)  # 当前分钟
         
         with self._lock:
             # 获取该域名的限制次数
-            limit = self._rate_limit.get(domain, self._default_limit)
+            limit = self._domain_limits.get(domain, self._default_limit)
+            current_time = int(time.time() // 60)  # 当前分钟
             
             # 初始化或更新域名的请求记录
-            if domain not in self._rate_limit:
-                self._rate_limit[domain] = {
+            if domain not in self._domain_requests:
+                self._domain_requests[domain] = {
                     'count': 0,
                     'current_time': current_time
                 }
             
+            requests_record = self._domain_requests[domain]
+            
             # 如果时间已经过了一分钟，重置计数器
-            if self._rate_limit[domain]['current_time'] != current_time:
-                self._rate_limit[domain]['count'] = 0
-                self._rate_limit[domain]['current_time'] = current_time
+            if requests_record['current_time'] != current_time:
+                requests_record['count'] = 0
+                requests_record['current_time'] = current_time
             
             # 检查是否超过限制
-            if self._rate_limit[domain]['count'] >= limit:
+            if requests_record['count'] >= limit:
                 # 等待到下一分钟
                 wait_time = 60 - (time.time() % 60) + 0.1
                 time.sleep(wait_time)
                 # 重置计数器
-                self._rate_limit[domain]['count'] = 0
-                self._rate_limit[domain]['current_time'] = int(time.time() // 60)
+                requests_record['count'] = 0
+                requests_record['current_time'] = int(time.time() // 60)
             
             # 增加计数器
-            self._rate_limit[domain]['count'] += 1
+            requests_record['count'] += 1
 
     def request(self, method='get', url=None, times=3, retry_wait_time=1588, proxies=None, wait_time=None, **kwargs):
         """
