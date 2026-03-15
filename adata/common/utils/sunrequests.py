@@ -10,6 +10,7 @@
 
 import threading
 import time
+from urllib.parse import urlparse
 
 import requests
 
@@ -45,6 +46,58 @@ class SunRequests(object):
     def __init__(self, sun_proxy: SunProxy = None) -> None:
         super().__init__()
         self.sun_proxy = sun_proxy
+        # 域名请求频率限制
+        self._rate_limit = {}
+        # 默认每分钟请求次数限制
+        self._default_limit = 30
+        # 线程锁
+        self._lock = threading.Lock()
+
+    def set_rate_limit(self, domain, limit):
+        """
+        设置域名的请求频率限制
+        :param domain: 域名
+        :param limit: 每分钟请求次数
+        """
+        with self._lock:
+            self._rate_limit[domain] = limit
+
+    def _check_rate_limit(self, url):
+        """
+        检查并处理请求频率限制
+        :param url: 请求URL
+        """
+        parsed_url = urlparse(url)
+        domain = parsed_url.netloc
+        current_time = int(time.time() // 60)  # 当前分钟
+        
+        with self._lock:
+            # 获取该域名的限制次数
+            limit = self._rate_limit.get(domain, self._default_limit)
+            
+            # 初始化或更新域名的请求记录
+            if domain not in self._rate_limit:
+                self._rate_limit[domain] = {
+                    'count': 0,
+                    'current_time': current_time
+                }
+            
+            # 如果时间已经过了一分钟，重置计数器
+            if self._rate_limit[domain]['current_time'] != current_time:
+                self._rate_limit[domain]['count'] = 0
+                self._rate_limit[domain]['current_time'] = current_time
+            
+            # 检查是否超过限制
+            if self._rate_limit[domain]['count'] >= limit:
+                # 等待到下一分钟
+                wait_time = 60 - (time.time() % 60) + 0.1
+                time.sleep(wait_time)
+                # 重置计数器
+                self._rate_limit[domain]['count'] = 0
+                self._rate_limit[domain]['current_time'] = int(time.time() // 60)
+            
+            # 增加计数器
+            self._rate_limit[domain]['count'] += 1
 
     def request(self, method='get', url=None, times=3, retry_wait_time=1588, proxies=None, wait_time=None, **kwargs):
         """
@@ -58,9 +111,13 @@ class SunRequests(object):
         :param kwargs: 其它 requests 参数，用法相同
         :return: res
         """
-        # 1. 获取设置代理
+        # 1. 检查频率限制
+        self._check_rate_limit(url)
+        
+        # 2. 获取设置代理
         proxies = self.__get_proxies(proxies)
-        # 2. 请求数据结果
+        
+        # 3. 请求数据结果
         res = None
         for i in range(times):
             if wait_time:
